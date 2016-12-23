@@ -18,6 +18,7 @@
 #include "net.h"
 #include "policy/policy.h"
 #include "pow.h"
+#include "auxpow"
 #include "primitives/transaction.h"
 #include "script/standard.h"
 #include "timedata.h"

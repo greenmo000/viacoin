@@ -475,6 +475,8 @@ std::string HelpMessage(HelpMessageMode mode)
         strUsage += HelpMessageOpt("-rpcservertimeout=<n>", strprintf("Timeout during HTTP requests (default: %d)", DEFAULT_HTTP_SERVER_TIMEOUT));
     }
 
+    strUsage += HelpMessageOpt("-auxminingaddr", _("Address for getauxblock coinbase"));
+
     return strUsage;
 }
 
@@ -1312,8 +1314,10 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                         CleanupBlockRevFiles();
                 }
 
-                if (!LoadBlockIndex()) {
-                    strLoadError = _("Error loading block database");
+                    bool fAuxPow;
+                    fAuxPow = pblocktree->ReadFlag("auxpow", fAuxPow) && fAuxPow;
+                    if (fAuxPow && !LoadBlockIndex()) {
+                        strLoadError = _("Error loading block database");
                     break;
                 }
 
@@ -1322,9 +1326,19 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                 if (!mapBlockIndex.empty() && mapBlockIndex.count(chainparams.GetConsensus().hashGenesisBlock) == 0)
                     return InitError(_("Incorrect or no genesis block found. Wrong datadir for network?"));
 
+                int nLastBlockFile = 0;
+                bool dbEmpty = !pblocktree->ReadLastBlockFile(nLastBlockFile);
+
                 // Initialize the block index (no-op if non-empty database was already loaded)
-                if (!InitBlockIndex(chainparams)) {
+                  if ((fAuxPow || dbEmpty) && !InitBlockIndex(chainparams)) {
                     strLoadError = _("Error initializing block database");
+                    break;
+                }
+
+                fAuxPow = pblocktree->ReadFlag("auxpow", fAuxPow) && fAuxPow;
+
+                if (!fAuxPow) {
+                    strLoadError = _("You need to rebuild the database using -reindex to enable auxpow support");
                     break;
                 }
 

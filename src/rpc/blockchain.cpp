@@ -19,6 +19,7 @@
 #include "util.h"
 #include "utilstrencodings.h"
 #include "hash.h"
+#include "auxpow.h"
 
 #include <stdint.h>
 
@@ -30,6 +31,7 @@ using namespace std;
 
 extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry);
 void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out, bool fIncludeHex);
+void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry);
 
 double GetDifficulty(const CBlockIndex* blockindex)
 {
@@ -106,6 +108,38 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
     result.push_back(Pair("version", block.nVersion));
     result.push_back(Pair("versionHex", strprintf("%08x", block.nVersion)));
     result.push_back(Pair("merkleroot", block.hashMerkleRoot.GetHex()));
+    if (block.nVersion & BLOCK_VERSION_AUXPOW) {
+        // this block includes auxpow
+        Object auxpow;
+        auxpow.push_back(Pair("size", (int)::GetSerializeSize(*block.auxpow, SER_NETWORK, PROTOCOL_VERSION)));
+
+        Object coinbasetx;
+        TxToJSON(*block.auxpow, 0, coinbasetx);
+        auxpow.push_back(Pair("coinbasetx", Value(coinbasetx)));
+
+        Array coinbaseMerkle;
+        BOOST_FOREACH(const uint256 &hash, block.auxpow->vMerkleBranch)
+                        coinbaseMerkle.push_back(hash.GetHex());
+        auxpow.push_back(Pair("coinbaseMerkleBranch", coinbaseMerkle));
+        auxpow.push_back(Pair("coinbaseIndex", block.auxpow->nIndex));
+
+        Array chainMerkle;
+        BOOST_FOREACH(const uint256 &hash, block.auxpow->vChainMerkleBranch)
+                        chainMerkle.push_back(hash.GetHex());
+        auxpow.push_back(Pair("chainMerkleBranch", chainMerkle));
+        auxpow.push_back(Pair("chainIndex", (boost::uint64_t)block.auxpow->nChainIndex));
+
+        Object parent_block;
+        parent_block.push_back(Pair("hash", block.auxpow->parentBlockHeader.GetHash().GetHex()));
+        parent_block.push_back(Pair("version", (boost::uint64_t)block.auxpow->parentBlockHeader.nVersion));
+        parent_block.push_back(Pair("previousblockhash", block.auxpow->parentBlockHeader.hashPrevBlock.GetHex()));
+        parent_block.push_back(Pair("merkleroot", block.auxpow->parentBlockHeader.hashMerkleRoot.GetHex()));
+        parent_block.push_back(Pair("time", (boost::int64_t)block.auxpow->parentBlockHeader.nTime));
+        parent_block.push_back(Pair("bits", strprintf("%08x", block.auxpow->parentBlockHeader.nBits)));
+        parent_block.push_back(Pair("nonce", (boost::uint64_t)block.auxpow->parentBlockHeader.nNonce));
+        auxpow.push_back(Pair("parent_block", Value(parent_block)));
+        result.push_back(Pair("auxpow", Value(auxpow)));
+    }
     UniValue txs(UniValue::VARR);
     BOOST_FOREACH(const CTransaction&tx, block.vtx)
     {

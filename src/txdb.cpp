@@ -136,16 +136,25 @@ void CCoinsViewDBCursor::Next()
         keyTmp.first = 0; // Invalidate cached key after last record so that Valid() and GetKey() return false
 }
 
-bool CBlockTreeDB::WriteBatchSync(const std::vector<std::pair<int, const CBlockFileInfo*> >& fileInfo, int nLastFile, const std::vector<const CBlockIndex*>& blockinfo) {
+bool CBlockTreeDB::WriteBatchSync(std::vector<std::pair<int, const CBlockFileInfo *>> fileInfo, int nLastFile, std::vector<const CBlockIndex *> blockinfo, std::map<uint256, boost::shared_ptr<CAuxPow> >& auxpows {
     CDBBatch batch(*this);
     for (std::vector<std::pair<int, const CBlockFileInfo*> >::const_iterator it=fileInfo.begin(); it != fileInfo.end(); it++) {
         batch.Write(make_pair(DB_BLOCK_FILES, it->first), *it->second);
     }
     batch.Write(DB_LAST_BLOCK, nLastFile);
     for (std::vector<const CBlockIndex*>::const_iterator it=blockinfo.begin(); it != blockinfo.end(); it++) {
+        std::map<uint256, boost::shared_ptr<CAuxPow> >::const_iterator auxIt = auxpows.find((*it)->GetBlockHash());
+        if (auxIt != auxpows.end()) {
+            batch.Write(std::make_pair(std::make_pair('b', (*it)->GetBlockHash()), 'a'), CDiskBlockIndex(*it, auxIt->second));
+            }
         batch.Write(make_pair(DB_BLOCK_INDEX, (*it)->GetBlockHash()), CDiskBlockIndex(*it));
     }
     return WriteBatch(batch, true);
+}
+
+bool CBlockTreeDB::ReadDiskBlockIndex(const uint256 &blkid, CDiskBlockIndex &diskblockindex)
+{
+    return Read(std::make_pair(std::make_pair('b', blkid), 'a'), diskblockindex);
 }
 
 bool CBlockTreeDB::ReadTxIndex(const uint256 &txid, CDiskTxPos &pos) {
@@ -175,6 +184,9 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
 {
     boost::scoped_ptr<CDBIterator> pcursor(NewIterator());
 
+    CDataStream ssKeySet(SER_DISK, CLIENT_VERSION);
+    ssKeySet << std::make_pair(std::make_pair('b', uint256(0)), 'a'); // 'b' is the prefix for BlockIndex, 'a' signifies the first part
+    uint256 hash;
     pcursor->Seek(make_pair(DB_BLOCK_INDEX, uint256()));
 
     // Load mapBlockIndex

@@ -72,6 +72,7 @@ endif
 # bitcoin core #
 BITCOIN_CORE_H = \
   addrman.h \
+  auxpow.h \
   base58.h \
   bloom.h \
   blockencodings.h \
@@ -163,6 +164,7 @@ libbitcoin_server_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(MINIUPNPC_CP
 libbitcoin_server_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_server_a_SOURCES = \
   addrman.cpp \
+  auxpow.cpp \
   bloom.cpp \
   blockencodings.cpp \
   chain.cpp \

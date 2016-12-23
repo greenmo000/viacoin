@@ -108,6 +108,8 @@ private:
     void operator=(const CBlockTreeDB&);
 public:
     bool WriteBatchSync(const std::vector<std::pair<int, const CBlockFileInfo*> >& fileInfo, int nLastFile, const std::vector<const CBlockIndex*>& blockinfo);
+    bool WriteBatchSync(std::vector<std::pair<int, const CBlockFileInfo *>> fileInfo, int nLastFile, std::vector<const CBlockIndex *> blockinfo, std::map<uint256, boost::shared_ptr<CAuxPow>> map);
+    bool ReadDiskBlockIndex(const uint256 &blkid, CDiskBlockIndex& diskblockindex);
     bool ReadBlockFileInfo(int nFile, CBlockFileInfo &fileinfo);
     bool ReadLastBlockFile(int &nFile);
     bool WriteReindexing(bool fReindex);
